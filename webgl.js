@@ -12,28 +12,24 @@ const settings = {
   dimensions: [ 512, 512 ],
   fps: 30,
   duration: 4,
-  // Make the loop animated
   animate: true,
-  // Get a WebGL canvas rather than 2D
   context: "webgl",
 };
 
 const sketch = ({ context, width, height }) => {
-  console.log(`width : ${width}, height: ${height}`);
   // Create a renderer
   const renderer = new THREE.WebGLRenderer({
-    canvas: context.canvas
+    context
   });
 
   // WebGL background color
   renderer.setClearColor('hsl(0, 0%, 95%)', 1);
 
   // Setup a camera, we will update its settings on resize
-  const camera = new THREE.OrthographicCamera(width / -2, width / 2, height / 2, height / -1, 1, 1000);
+  const camera = new THREE.OrthographicCamera();
 
   // Setup your scene
   const scene = new THREE.Scene();
-  global.scene = scene;
 
   const palette = random.pick(palettes);
 
@@ -56,7 +52,7 @@ const sketch = ({ context, width, height }) => {
       random.range(-1, 1),
       random.range(-1, 1)
     )
-    mesh.scale.multiplyScalar(1.9)
+    mesh.scale.multiplyScalar(.9)
     scene.add(mesh);
   }
 
@@ -70,12 +66,11 @@ const sketch = ({ context, width, height }) => {
   return {
     // Handle resize events here
     resize({ pixelRatio, viewportWidth, viewportHeight }) {
-      console.log(`viewportWidth : ${viewportWidth}, viewportHeight: ${viewportHeight}`)
       renderer.setPixelRatio(pixelRatio);
       renderer.setSize(viewportWidth, viewportHeight);
 
       const aspect = viewportWidth / viewportHeight;
-      const zoom = 1.85;
+      const zoom = 2;
 
       // Bounds
       camera.left = -zoom * aspect;
@@ -92,7 +87,7 @@ const sketch = ({ context, width, height }) => {
       camera.lookAt(new THREE.Vector3());
 
       // Update the camera
-      camera.aspect = aspect * 3;
+      camera.aspect = aspect;
       camera.updateProjectionMatrix();
     },
     // Update & render your scene here
