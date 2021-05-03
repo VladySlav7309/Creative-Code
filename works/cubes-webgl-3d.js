@@ -7,6 +7,8 @@ require("three/examples/js/controls/OrbitControls");
 
 const canvasSketch = require("canvas-sketch");
 const random = require("canvas-sketch-util/random");
+const eases = require('eases');
+const BezierEasing = require('bezier-easing');
 
 const settings = {
   dimensions: [ 512, 512 ],
@@ -59,8 +61,10 @@ const sketch = ({ context, width, height }) => {
   scene.add(new THREE.AmbientLight('hsl(0, 0%, 25%)'));
 
   const light = new THREE.DirectionalLight('white', 1);
-  light.position.set(3, -3, 0);
+  light.position.set(0, 0, 4);
   scene.add(light);
+
+  const bezierEasingFunc = new BezierEasing(.47,.21,0,1.16);
 
   // draw each frame
   return {
@@ -92,7 +96,11 @@ const sketch = ({ context, width, height }) => {
     },
     // Update & render your scene here
     render({ playhead }) {
-      scene.rotation.y = playhead * Math.PI * 2;
+      const zR = Math.sin(playhead * Math.PI * 2);
+      scene.rotation.z = bezierEasingFunc(zR);
+      // scene.rotation.z = eases.expoInOut(zR);
+      // const yR = Math.cos(playhead * Math.PI * 2);
+      // scene.rotation.y = eases.quadInOut(yR);
       renderer.render(scene, camera);
     },
     // Dispose of events & renderer for cleaner hot-reloading
