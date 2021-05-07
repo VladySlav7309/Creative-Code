@@ -1,6 +1,7 @@
 const canvasSketch = require('canvas-sketch');
 const createShader = require('canvas-sketch-util/shader');
 const glsl = require('glslify');
+const cnoise2 = require('glsl-noise');
 
 // Setup our sketch
 const settings = {
@@ -9,22 +10,31 @@ const settings = {
 };
 
 // Your glsl code
-const frag = glsl(`
+const frag = glsl`
   precision highp float;
 
   uniform float time;
+  uniform float aspect;
   varying vec2 vUv;
 
   void main () {
-    vec3 color = 0.5 + 0.5 * cos(time + vUv.xyx + vec3(0.0, 2.0, 4.0));
-    gl_FragColor = vec4(color, 1.0);
+    vec3 colorA = sin(time * 3.0) + vec3(1.0, 0, 0);
+    vec3 colorB = vec3(0, 0.5, 0);
+    vec2 center = vUv - 0.5;
+    center.x *= aspect;
+    float dist = length(center);
+
+    float alpha = smoothstep(0.355, 0.35, dist);
+    vec3 color = mix(colorA, colorB, vUv.x + vUv.y + sin(time));
+    gl_FragColor = vec4(color, alpha);
   }
-`);
+`;
 
 // Your sketch, which simply returns the shader
 const sketch = ({ gl }) => {
   // Create the shader and return it
   return createShader({
+    clearColor: 'white',
     // Pass along WebGL context
     gl,
     // Specify fragment and/or vertex shader strings
@@ -32,7 +42,8 @@ const sketch = ({ gl }) => {
     // Specify additional uniforms to pass down to the shaders
     uniforms: {
       // Expose props from canvas-sketch
-      time: ({ time }) => time
+      time: ({ time }) => time,
+      aspect: ({ width, height }) => width / height
     }
   });
 };
