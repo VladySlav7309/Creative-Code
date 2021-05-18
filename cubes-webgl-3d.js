@@ -11,10 +11,37 @@ const eases = require('eases');
 const BezierEasing = require('bezier-easing');
 const glsl = require('glslify');
 
+
+
+const DURATION_SECONDS = 4;
+const TOTAL_MESHES = 40;
+const entranceStep = 0.5 / TOTAL_MESHES;
+const totalMeshLifeTime = 0.5;
+
+const getMeshLifeStartTime = (index) => index * entranceStep;
+const getMeshLifeEndTime = (index) => getMeshLifeStartTime(index) + totalMeshLifeTime;
+
+const isMeshReadyToEnter = (playHead, index) => {
+  return getMeshLifeStartTime(index) <= playHead;
+};
+const isMeshLifecycleEnded = (playHead, index) => {
+  return getMeshLifeEndTime(index) <= playHead;
+};
+const getMeshScaleMultiplayerBasedOnCurrentLifeTime = (playHead, index) => {
+  const totalTimePassed = playHead - getMeshLifeStartTime(index);
+  return 1 - Math.abs(totalTimePassed - totalMeshLifeTime / 2) * 4;
+};
+const multipleMeshScaleByLifeTime = (playHead, index, meshScale) => {
+  const newMeshScale = meshScale.slice();
+  const scaleMultiplayer = getMeshScaleMultiplayerBasedOnCurrentLifeTime(playHead, index);
+  return newMeshScale.map(axisScale => axisScale * scaleMultiplayer * random.noise2D(index / TOTAL_MESHES, axisScale));
+}
+
+
 const settings = {
   dimensions: [ 512, 512 ],
   fps: 30,
-  duration: 4,
+  duration: DURATION_SECONDS,
   animate: true,
   context: "webgl",
 };
@@ -41,7 +68,7 @@ const sketch = ({ context, width, height }) => {
 
   const meshes = [];
   // Setup a mesh with geometry + material
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < TOTAL_MESHES; i++) {
     const vertexShader = glsl(`
       varying vec2 vUv;
 
@@ -53,8 +80,6 @@ const sketch = ({ context, width, height }) => {
       void main () {
         vUv = uv;
         vec3 pos = position.xyz;
-        pos *= clamp(sin(playhead), 0.3, 1.0);
-        pos += noise(vec4(position.xyz, time)) * 0.05;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
       }
     `);
@@ -85,17 +110,24 @@ const sketch = ({ context, width, height }) => {
     }));
     mesh.position.set(
       random.range(-1, 1),
-      random.range(-1, 1),
+      0,
+      // random.range(-1, 1),
       random.range(-1, 1)
     );
-    mesh.scale.set(
+    const meshScale = [
       random.range(-1, 1),
       random.range(-1, 1),
       random.range(-1, 1)
-    )
+    ];
+    mesh.scale.set(
+      ...meshScale
+    );
     mesh.scale.multiplyScalar(.9)
     scene.add(mesh);
-    meshes.push(mesh);
+    meshes.push({
+      mesh, 
+      meshScale
+    });
   }
 
   scene.add(new THREE.AmbientLight('hsl(0, 0%, 25%)'));
@@ -105,6 +137,7 @@ const sketch = ({ context, width, height }) => {
   scene.add(light);
 
   const bezierEasingFunc = new BezierEasing(.17,.67,.83,.67);
+  console.log('set the mesh');
 
   // draw each frame
   return {
@@ -136,17 +169,29 @@ const sketch = ({ context, width, height }) => {
     },
     // Update & render your scene here
     render({ playhead, time }) {
-      const zR = Math.sin(playhead * Math.PI * 1);
+      // const zR = Math.sin(playhead * Math.PI * 1);
       
-      scene.rotation.z = bezierEasingFunc(zR);
+      // scene.rotation.z = bezierEasingFunc(zR);
       // scene.rotation.z = eases.expoInOut(zR);
       // const yR = Math.cos(playhead * Math.PI * 2);
       // scene.rotation.y = eases.quadInOut(yR);
       renderer.render(scene, camera);
-        // console.log('time : ', time);
-      meshes.forEach(mesh => {
+      meshes.forEach(({ mesh, meshScale }, index) => {
         mesh.material.uniforms.playhead.value = playhead * Math.PI;
         mesh.material.uniforms.time.value = time;
+        if (isMeshReadyToEnter(playhead, index) && !isMeshLifecycleEnded(playhead, index)) {
+          mesh.position.y = (playhead - 0.5) * 3 + random.noise2D(mesh.position.x, index / TOTAL_MESHES);
+          mesh.scale.set(
+            ...multipleMeshScaleByLifeTime(playhead, index, meshScale)
+          );
+        } else {
+          mesh.position.y = 0;
+          mesh.scale.set(
+            0,
+            0,
+            0
+          )
+        }
       })
     },
     // Dispose of events & renderer for cleaner hot-reloading
@@ -157,3 +202,5 @@ const sketch = ({ context, width, height }) => {
 };
 
 canvasSketch(sketch, settings);
+
+
